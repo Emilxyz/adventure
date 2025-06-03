@@ -160,6 +160,7 @@ public abstract class MiniMessageTranslator implements Translator {
     } else {
       final TagResolver.Builder tagResolverBuilder = TagResolver.builder();
       final List<Tag> indexedArguments = new ArrayList<>(translationArguments.size());
+      final Number[] numericArguments = new Number[translationArguments.size()];
       boolean targetAlreadyOverridden = false;
 
       for (final TranslationArgument argument : translationArguments) {
@@ -181,9 +182,15 @@ public abstract class MiniMessageTranslator implements Translator {
             final Object data = translatorArgument.data();
 
             if (data instanceof TranslationArgumentLike) {
-              final Tag tag = Tag.selfClosingInserting((TranslationArgumentLike) data);
+              final TranslationArgument dataArgument = ((TranslationArgumentLike) data).asTranslationArgument();
+              final Tag tag = Tag.selfClosingInserting(dataArgument);
               tagResolverBuilder.tag(translatorArgument.name(), tag);
               indexedArguments.add(tag);
+
+              final Object dataValue = dataArgument.value();
+              if (dataValue instanceof Number) {
+                numericArguments[indexedArguments.size() - 1] = (Number) dataValue;
+              }
               continue;
             } else if (data instanceof Tag) {
               final Tag tag = (Tag) data;
@@ -199,9 +206,13 @@ public abstract class MiniMessageTranslator implements Translator {
         }
 
         indexedArguments.add(Tag.selfClosingInserting(argument));
+
+        if (value instanceof Number) {
+          numericArguments[indexedArguments.size() - 1] = (Number) value;
+        }
       }
 
-      resultingComponent = this.miniMessage.deserialize(miniMessageString, target, new ArgumentTag(indexedArguments, tagResolverBuilder.build()));
+      resultingComponent = this.miniMessage.deserialize(miniMessageString, target, new ArgumentTag(indexedArguments, tagResolverBuilder.build()), new ArgumentChoiceTag(numericArguments));
     }
 
     final Style style = component.style();
